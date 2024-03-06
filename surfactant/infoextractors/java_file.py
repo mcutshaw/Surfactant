@@ -70,7 +70,8 @@ def extract_java_info(filename: str, filetype: str) -> object:
     info = {"javaClasses": {}}
     if filetype in ("JAR", "EAR", "WAR"):
         with javatools.jarinfo.JarInfo(filename) as jarinfo:
-            for class_ in jarinfo.get_classes():
+            jar_classes = jarinfo.get_classes()
+            for class_ in jar_classes:
                 handle_java_class(info, jarinfo.get_classinfo(class_))
     elif filetype == "JAVACLASS":
         with open(filename, "rb") as f:

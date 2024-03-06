@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid as uuid_module
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict, Set
 
 from dataclasses_json import dataclass_json
 from loguru import logger
@@ -27,17 +27,18 @@ class SBOM:
     systems: List[System] = field(default_factory=list)
     hardware: List[Hardware] = field(default_factory=list)
     software: List[Software] = field(default_factory=list)
-    relationships: List[Relationship] = field(default_factory=list)
+    relationships: Set[Relationship] = field(default_factory=set)
     analysisData: List[AnalysisData] = field(default_factory=list)
     observations: List[Observation] = field(default_factory=list)
-    starRelationships: List[StarRelationship] = field(default_factory=list)
+    starRelationships: Set[StarRelationship] = field(default_factory=set)
+    software_lookup_by_sha256: Dict = field(default_factory=dict)
 
     def add_relationship(self, rel: Relationship) -> None:
-        self.relationships.append(rel)
+        self.relationships.add(rel)
 
     def create_relationship(self, xUUID: str, yUUID: str, relationship: str) -> Relationship:
         rel = Relationship(xUUID, yUUID, relationship)
-        self.relationships.append(rel)
+        self.relationships.add(rel)
         return rel
 
     def find_relationship_object(self, relationship: Relationship) -> bool:
@@ -53,21 +54,24 @@ class SBOM:
             all_match = True
             if xUUID and rel.xUUID != xUUID:
                 all_match = False
+                return False
             if yUUID and rel.yUUID != yUUID:
                 all_match = False
+                return False
             if relationship and rel.relationship.upper() != relationship.upper():
                 all_match = False
+                return False
             if all_match:
                 return True
         return False
 
     def find_software(self, sha256: Optional[str]) -> Optional[Software]:
-        for sw in self.software:
-            if sha256 == sw.sha256:
-                return sw
+        if sha256 in self.software_lookup_by_sha256:
+            return self.software_lookup_by_sha256[sha256]
         return None
 
     def add_software(self, sw: Software) -> None:
+        self.software_lookup_by_sha256[sw.sha256] = sw
         self.software.append(sw)
 
     # pylint: disable=too-many-arguments
@@ -114,6 +118,7 @@ class SBOM:
             recordedInstitution=recordedInstitution,
             components=components,
         )
+        self.software_lookup_by_sha256[sw.sha256] = sw
         self.software.append(sw)
         return sw
 
@@ -145,6 +150,7 @@ class SBOM:
                     logger.info(f"MERGE DUPLICATE: uuid1={u1}, uuid2={u2}")
                     uuid_updates[u2] = u1
                 else:
+                    self.software_lookup_by_sha256[sw.sha256] = sw
                     self.software.append(sw)
 
         # merge relationships
@@ -162,7 +168,7 @@ class SBOM:
                 ):
                     logger.info(f"DUPLICATE RELATIONSHIP: {existing_rel}")
                 else:
-                    self.relationships.append(rel)
+                    self.relationships.add(rel)
 
         # rewrite container path UUIDs using rewrite map/list
         for sw in self.software:
@@ -200,7 +206,7 @@ class SBOM:
                 ):
                     logger.info(f"DUPLICATE STAR RELATIONSHIP: {existing_rel}")
                 else:
-                    self.starRelationships.append(rel)
+                    self.starRelationships.add(rel)
 
     def _find_systems_entry(
         self, uuid: Optional[str] = None, name: Optional[str] = None
@@ -220,9 +226,11 @@ class SBOM:
             if uuid:
                 if system.UUID != uuid:
                     all_match = False
+                    return None
             if name:
                 if system.name != name:
                     all_match = False
+                    return None
             if all_match:
                 return system
         return None
@@ -290,12 +298,15 @@ class SBOM:
             if xUUID:
                 if rel.xUUID != xUUID:
                     all_match = False
+                    return None
             if yUUID:
                 if rel.yUUID != yUUID:
                     all_match = False
+                    return None
             if relationship:
                 if rel.relationship != relationship:
                     all_match = False
+                    return None
             if all_match:
                 return rel
         return None
@@ -322,12 +333,15 @@ class SBOM:
             if xUUID:
                 if rel.xUUID != xUUID:
                     all_match = False
+                    return None
             if yUUID:
                 if rel.yUUID != yUUID:
                     all_match = False
+                    return None
             if relationship:
                 if rel.relationship != relationship:
                     all_match = False
+                    return None
             if all_match:
                 return rel
         return None

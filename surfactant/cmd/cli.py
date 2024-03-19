@@ -178,12 +178,11 @@ class cli_find:
         """
         sha256_hash, sha1_hash, md5_hash = None, None, None
         with open(file, "rb") as f:
+            binary_data = f.read()
             if sha256:
-                sha256_hash = hashlib.sha256(f.read()).hexdigest()
-                f.seek(0)
+                sha256_hash = hashlib.sha256(binary_data).hexdigest()
             if sha1:
-                sha1_hash = hashlib.sha1(f.read()).hexdigest()
-                f.seek(0)
+                sha1_hash = hashlib.sha1(binary_data).hexdigest()
             if md5:
-                md5_hash = hashlib.md5(f.read()).hexdigest()
+                md5_hash = hashlib.md5(binary_data).hexdigest()
         return sha256_hash, sha1_hash, md5_hash
